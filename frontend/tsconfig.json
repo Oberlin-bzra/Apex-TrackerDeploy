@@ -20,7 +20,8 @@
     "noUnusedParameters": true,
     "noUncheckedSideEffectImports": true,
     "strict": true,
-    "strictNullChecks": false,    
+    "strictNullChecks": false,
+    "types": ["vite/client"]
   },
-  "include": ["src"]
+  "include": ["src", "pages"]
 }
