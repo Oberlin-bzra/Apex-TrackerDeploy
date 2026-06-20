@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script type="module" src="/src/darkmode.ts"></script>
+    <script type="module" src="/src/auth-nav.ts"></script>
+    <link rel="icon" type="image/x-icon" href="/faviconNew.jpg" />
+    <title>ApexTracker - Garage</title>
+  </head>
+  <body>
+    <header>
+      <a href="/index.html" class="logo-link"><h1>ApexTracker</h1></a>
+      <div class="nav-buttons">
+        <a href="/pages/login.html" class="btn btn-primary">Login</a>
+        <a href="/pages/dashboard.html" class="btn btn-secondary">Dashboard</a>
+        <a href="/pages/garage.html" class="btn btn-secondary">Garage</a>
+        <button id="darkmode-btn"><span>🌙</span></button>
+      </div>
+    </header>
+
+    <main class="dashboard-content">
+      <h1>Meine Favoriten</h1>
+      <p id="loading-msg">Lade Daten...</p>
+
+      <section>
+        <h2>Favorisierte Teams</h2>
+        <table id="fav-teams-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Country</th>
+              <th>Team Principal</th>
+              <th>Championships</th>
+              <th>Points</th>
+              <th>Place</th>
+              <th class="star-header">⭐</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <p class="empty-msg" id="empty-teams">Keine Teams favorisiert.</p>
+      </section>
+
+      <section>
+        <h2>Favorisierte Fahrer</h2>
+        <table id="fav-drivers-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Nationality</th>
+              <th>Age</th>
+              <th>Championships</th>
+              <th>Wins</th>
+              <th>Podiums</th>
+              <th>Points</th>
+              <th>Place</th>
+              <th class="star-header">⭐</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <p class="empty-msg" id="empty-drivers">Keine Fahrer favorisiert.</p>
+      </section>
+
+      <section>
+        <h2>Favorisierte Fahrzeuge</h2>
+        <table id="fav-vehicles-table">
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Engine</th>
+              <th>Horsepower</th>
+              <th>Year</th>
+              <th class="star-header">⭐</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <p class="empty-msg" id="empty-vehicles">Keine Fahrzeuge favorisiert.</p>
+      </section>
+    </main>
+
+    <footer>
+      <small>&copy; 2025 ApexTracker</small> |
+      <small><a href="./impressum.html">Impressum</a></small>
+    </footer>
+
+    <script>
+      const API_BASE = import.meta.env.VITE_API_BASE;
+
+      let teams = [];
+      let drivers = [];
+      let vehicles = [];
+
+      let savedTeams = JSON.parse(localStorage.getItem("favTeams") || "[]");
+      let savedDrivers = JSON.parse(localStorage.getItem("favDrivers") || "[]");
+      let savedVehicles = JSON.parse(localStorage.getItem("favVehicles") || "[]");
+
+      function persistFavs() {
+        localStorage.setItem("favTeams", JSON.stringify(savedTeams));
+        localStorage.setItem("favDrivers", JSON.stringify(savedDrivers));
+        localStorage.setItem("favVehicles", JSON.stringify(savedVehicles));
+      }
+
+      function toggleFavorite(type, id, btn) {
+        let list;
+        if (type === "teams") list = savedTeams;
+        else if (type === "drivers") list = savedDrivers;
+        else list = savedVehicles;
+
+        const idx = list.indexOf(id);
+        if (idx !== -1) {
+          list.splice(idx, 1);
+        }
+        persistFavs();
+        renderAll();
+      }
+
+      function renderFavTable(allItems, favIds, tableId, keys, type, idKey, emptyMsgId) {
+        const tbody = document.querySelector(`#${tableId} tbody`);
+        const emptyMsg = document.getElementById(emptyMsgId);
+        tbody.innerHTML = "";
+
+        const favItems = allItems.filter((item) => favIds.includes(item[idKey]));
+
+        if (favItems.length === 0) {
+          emptyMsg.style.display = "block";
+          return;
+        }
+        emptyMsg.style.display = "none";
+
+        favItems.forEach((item) => {
+          const tr = document.createElement("tr");
+          const id = item[idKey];
+
+          keys.forEach((key) => {
+            const td = document.createElement("td");
+            let value = item[key];
+            if (Array.isArray(value)) value = value.join(", ");
+            td.textContent = value ?? "";
+            tr.appendChild(td);
+          });
+
+          const favTd = document.createElement("td");
+          const favBtn = document.createElement("button");
+          favBtn.className = "star-btn active";
+          favBtn.textContent = "★";
+          favBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            toggleFavorite(type, id, favBtn);
+          });
+
+          favTd.appendChild(favBtn);
+          tr.appendChild(favTd);
+          tbody.appendChild(tr);
+        });
+      }
+
+      function renderAll() {
+        renderFavTable(teams, savedTeams, "fav-teams-table",
+          ["name", "country", "teamPrincipal", "championships", "constructorPoints", "constructorPlace"],
+          "teams", "_id", "empty-teams");
+
+        renderFavTable(drivers, savedDrivers, "fav-drivers-table",
+          ["name", "nationality", "age", "championships", "wins", "podiums", "driverPoints", "driverPlace"],
+          "drivers", "_id", "empty-drivers");
+
+        renderFavTable(vehicles, savedVehicles, "fav-vehicles-table",
+          ["model", "engine", "horsepower", "year"],
+          "vehicles", "_id", "empty-vehicles");
+      }
+
+      function makeTableSortable(tableId) {
+        const table = document.getElementById(tableId);
+        const headers = table.querySelectorAll("th");
+        const tbody = table.querySelector("tbody");
+
+        headers.forEach((header, index) => {
+          if (header.classList.contains("star-header")) return;
+          header.style.cursor = "pointer";
+          if (!header.querySelector(".sort-arrow")) {
+            header.innerHTML += ' <span class="sort-arrow">↕</span>';
+          }
+
+          header.addEventListener("click", () => {
+            const rows = Array.from(tbody.querySelectorAll("tr"));
+            const ascending = header.dataset.asc !== "true";
+            header.dataset.asc = ascending;
+
+            headers.forEach((h) => {
+              const arrow = h.querySelector(".sort-arrow");
+              if (arrow) arrow.textContent = "↕";
+            });
+
+            const arrow = header.querySelector(".sort-arrow");
+            arrow.textContent = ascending ? "▲" : "▼";
+
+            rows.sort((a, b) => {
+              let valA = a.children[index].textContent.trim();
+              let valB = b.children[index].textContent.trim();
+              const isNumeric = !isNaN(valA) && !isNaN(valB);
+              if (isNumeric) {
+                valA = parseFloat(valA);
+                valB = parseFloat(valB);
+              }
+              if (valA < valB) return ascending ? -1 : 1;
+              if (valA > valB) return ascending ? 1 : -1;
+              return 0;
+            });
+
+            rows.forEach((r) => tbody.appendChild(r));
+          });
+        });
+      }
+
+      async function loadData() {
+        const loadingMsg = document.getElementById("loading-msg");
+        try {
+          const [teamsRes, driversRes, vehiclesRes] = await Promise.all([
+            fetch(`${API_BASE}/teams`),
+            fetch(`${API_BASE}/drivers`),
+            fetch(`${API_BASE}/vehicles`),
+          ]);
+
+          if (!teamsRes.ok || !driversRes.ok || !vehiclesRes.ok) {
+            throw new Error("API error");
+          }
+
+          teams = await teamsRes.json();
+          drivers = await driversRes.json();
+          vehicles = await vehiclesRes.json();
+
+          loadingMsg.style.display = "none";
+
+          renderAll();
+
+          makeTableSortable("fav-teams-table");
+          makeTableSortable("fav-drivers-table");
+          makeTableSortable("fav-vehicles-table");
+
+        } catch (err) {
+          loadingMsg.textContent = "Fehler beim Laden der Daten. Ist das Backend gestartet?";
+          loadingMsg.style.color = "red";
+          console.error(err);
+        }
+      }
+
+      loadData();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" type="text/css" href="/styles/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script type="module" src="/src/darkmode.ts"></script>
+    <script type="module" src="/src/auth-nav.ts"></script>
+    <link rel="icon" type="image/x-icon" href="/faviconNew.jpg" />
+    <title>ApexTracker - Dashboard</title>
+  </head>
+  <body>
+    <header>
+      <a href="/index.html" class="logo-link"><h1>ApexTracker</h1></a>
+      <div class="nav-buttons">
+        <a href="/pages/login.html" class="btn btn-primary">Login</a>
+        <a href="/pages/dashboard.html" class="btn btn-secondary">Dashboard</a>
+        <a href="/pages/garage.html" class="btn btn-secondary">Garage</a>
+        <button id="darkmode-btn"><span>🌙</span></button>
+      </div>
+    </header>
+
+    <main class="dashboard-content">
+      <h1>Dashboard</h1>
+      <h4>Daten aus dem Jahr 2024</h4>
+      <p id="loading-msg">Lade Daten...</p>
+
+      <section>
+        <h2>Teams</h2>
+        <table id="teams-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Country</th>
+              <th>Drivers</th>
+              <th>Team Principal</th>
+              <th>Championships</th>
+              <th>Points</th>
+              <th>Place</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Drivers</h2>
+        <table id="drivers-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Nationality</th>
+              <th>Team</th>
+              <th>Age</th>
+              <th>Championships</th>
+              <th>Wins</th>
+              <th>Podiums</th>
+              <th>Points</th>
+              <th>Place</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Vehicles</h2>
+        <table id="vehicles-table">
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Team</th>
+              <th>Drivers</th>
+              <th>Engine</th>
+              <th>Horsepower</th>
+              <th>Year</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+    </main>
+
+    <footer>
+      <small>&copy; 2025 ApexTracker</small> |
+      <small><a href="./impressum.html">Impressum</a></small>
+    </footer>
+
+    <script>
+      const API_BASE = import.meta.env.VITE_API_BASE;
+
+      let teams = [];
+      let drivers = [];
+      let vehicles = [];
+
+      let savedTeams = JSON.parse(localStorage.getItem("favTeams") || "[]");
+      let savedDrivers = JSON.parse(localStorage.getItem("favDrivers") || "[]");
+      let savedVehicles = JSON.parse(localStorage.getItem("favVehicles") || "[]");
+
+      function persistFavs() {
+        localStorage.setItem("favTeams", JSON.stringify(savedTeams));
+        localStorage.setItem("favDrivers", JSON.stringify(savedDrivers));
+        localStorage.setItem("favVehicles", JSON.stringify(savedVehicles));
+      }
+
+      function isSaved(type, id) {
+        if (type === "teams") return savedTeams.includes(id);
+        if (type === "drivers") return savedDrivers.includes(id);
+        return savedVehicles.includes(id);
+      }
+
+      function toggleFavorite(type, id, btn) {
+        let list;
+        if (type === "teams") list = savedTeams;
+        else if (type === "drivers") list = savedDrivers;
+        else list = savedVehicles;
+
+        const idx = list.indexOf(id);
+        if (idx === -1) {
+          list.push(id);
+          btn.textContent = "★";
+          btn.classList.add("active");
+        } else {
+          list.splice(idx, 1);
+          btn.textContent = "☆";
+          btn.classList.remove("active");
+        }
+        persistFavs();
+      }
+
+
+      function getDriverName(driverId) {
+        const driver = drivers.find(d => d._id === driverId);
+        return driver ? driver.name : driverId;
+      }
+
+      function getTeamName(teamId) {
+        const team = teams.find(t => t._id === teamId);
+        return team ? team.name : teamId;
+      }
+
+      function resolveDriverNames(driverIds) {
+        if (!Array.isArray(driverIds)) return "";
+        return driverIds.map(id => getDriverName(id)).join(", ");
+      }
+
+      function createDriverLinks(driverIds) {
+        const span = document.createElement("span");
+        if (!Array.isArray(driverIds) || driverIds.length === 0) {
+          span.textContent = "-";
+          return span;
+        }
+
+        driverIds.forEach((driverId, index) => {
+          const driver = drivers.find(d => d._id === driverId);
+          if (driver) {
+            const link = document.createElement("a");
+            link.href = "#";
+            link.textContent = driver.name;
+            link.style.color = "#e10600";
+            link.style.textDecoration = "none";
+            link.style.fontWeight = "500";
+            link.onclick = (e) => {
+              e.preventDefault();
+              showDriverDetails(driver);
+            };
+            link.onmouseover = () => link.style.textDecoration = "underline";
+            link.onmouseout = () => link.style.textDecoration = "none";
+            span.appendChild(link);
+
+            if (index < driverIds.length - 1) {
+              span.appendChild(document.createTextNode(", "));
+            }
+          }
+        });
+
+        return span;
+      }
+
+      function createTeamLink(teamId) {
+        const team = teams.find(t => t._id === teamId);
+        const span = document.createElement("span");
+        
+        if (!team) {
+          span.textContent = teamId;
+          return span;
+        }
+
+        const link = document.createElement("a");
+        link.href = "#";
+        link.textContent = team.name;
+        link.style.color = "#e10600";
+        link.style.textDecoration = "none";
+        link.style.fontWeight = "500";
+        link.onclick = (e) => {
+          e.preventDefault();
+          showTeamDetails(team);
+        };
+        link.onmouseover = () => link.style.textDecoration = "underline";
+        link.onmouseout = () => link.style.textDecoration = "none";
+        span.appendChild(link);
+
+        return span;
+      }
+
+      function showDriverDetails(driver) {
+        const team = teams.find(t => t._id === driver.teamId);
+        alert(
+          `👤 ${driver.name}\n` +
+          `🏁 Team: ${team ? team.name : 'Unknown'}\n` +
+          `🌍 Nationality: ${driver.nationality}\n` +
+          `🎂 Age: ${driver.age}\n` +
+          `🏆 Championships: ${driver.championships}\n` +
+          `🥇 Wins: ${driver.wins}\n` +
+          `🏅 Podiums: ${driver.podiums}\n` +
+          `📊 Points: ${driver.driverPoints}\n` +
+          `#️⃣ Place: ${driver.driverPlace}`
+        );
+      }
+
+      function showTeamDetails(team) {
+        const driverNames = team.drivers.map(id => getDriverName(id)).join(", ");
+        alert(
+          `🏎️ ${team.name}\n` +
+          `🌍 Country: ${team.country}\n` +
+          `👨‍💼 Team Principal: ${team.teamPrincipal}\n` +
+          `👥 Drivers: ${driverNames}\n` +
+          `🏆 Championships: ${team.championships}\n` +
+          `📊 Points: ${team.constructorPoints}\n` +
+          `#️⃣ Place: ${team.constructorPlace}`
+        );
+      }
+
+
+      function renderTeamsTable() {
+        const thead = document.querySelector("#teams-table thead tr");
+        if (!thead.querySelector(".star-header")) {
+          const th = document.createElement("th");
+          th.className = "star-header";
+          th.textContent = "⭐";
+          thead.appendChild(th);
+        }
+
+        const tbody = document.querySelector("#teams-table tbody");
+        tbody.innerHTML = "";
+
+        teams.forEach((team) => {
+          const tr = document.createElement("tr");
+
+          const nameTd = document.createElement("td");
+          nameTd.textContent = team.name;
+          tr.appendChild(nameTd);
+
+          const countryTd = document.createElement("td");
+          countryTd.textContent = team.country;
+          tr.appendChild(countryTd);
+
+          const driversTd = document.createElement("td");
+          driversTd.appendChild(createDriverLinks(team.drivers));
+          tr.appendChild(driversTd);
+
+          const principalTd = document.createElement("td");
+          principalTd.textContent = team.teamPrincipal;
+          tr.appendChild(principalTd);
+
+          const champTd = document.createElement("td");
+          champTd.textContent = team.championships;
+          tr.appendChild(champTd);
+
+          const pointsTd = document.createElement("td");
+          pointsTd.textContent = team.constructorPoints;
+          tr.appendChild(pointsTd);
+
+          const placeTd = document.createElement("td");
+          placeTd.textContent = team.constructorPlace;
+          tr.appendChild(placeTd);
+
+          const favTd = document.createElement("td");
+          const favBtn = document.createElement("button");
+          favBtn.className = "star-btn";
+          if (isSaved("teams", team._id)) {
+            favBtn.textContent = "★";
+            favBtn.classList.add("active");
+          } else {
+            favBtn.textContent = "☆";
+          }
+          favBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            toggleFavorite("teams", team._id, favBtn);
+          });
+          favTd.appendChild(favBtn);
+          tr.appendChild(favTd);
+
+          tbody.appendChild(tr);
+        });
+      }
+
+      function renderDriversTable() {
+        const thead = document.querySelector("#drivers-table thead tr");
+        if (!thead.querySelector(".star-header")) {
+          const th = document.createElement("th");
+          th.className = "star-header";
+          th.textContent = "⭐";
+          thead.appendChild(th);
+        }
+
+        const tbody = document.querySelector("#drivers-table tbody");
+        tbody.innerHTML = "";
+
+        drivers.forEach((driver) => {
+          const tr = document.createElement("tr");
+
+          const nameTd = document.createElement("td");
+          nameTd.textContent = driver.name;
+          tr.appendChild(nameTd);
+
+          const natTd = document.createElement("td");
+          natTd.textContent = driver.nationality;
+          tr.appendChild(natTd);
+
+          const teamTd = document.createElement("td");
+          teamTd.appendChild(createTeamLink(driver.teamId));
+          tr.appendChild(teamTd);
+
+          const ageTd = document.createElement("td");
+          ageTd.textContent = driver.age;
+          tr.appendChild(ageTd);
+
+          const champTd = document.createElement("td");
+          champTd.textContent = driver.championships;
+          tr.appendChild(champTd);
+
+          const winsTd = document.createElement("td");
+          winsTd.textContent = driver.wins;
+          tr.appendChild(winsTd);
+
+          const podiumsTd = document.createElement("td");
+          podiumsTd.textContent = driver.podiums;
+          tr.appendChild(podiumsTd);
+
+          const pointsTd = document.createElement("td");
+          pointsTd.textContent = driver.driverPoints;
+          tr.appendChild(pointsTd);
+
+          const placeTd = document.createElement("td");
+          placeTd.textContent = driver.driverPlace;
+          tr.appendChild(placeTd);
+
+          const favTd = document.createElement("td");
+          const favBtn = document.createElement("button");
+          favBtn.className = "star-btn";
+          if (isSaved("drivers", driver._id)) {
+            favBtn.textContent = "★";
+            favBtn.classList.add("active");
+          } else {
+            favBtn.textContent = "☆";
+          }
+          favBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            toggleFavorite("drivers", driver._id, favBtn);
+          });
+          favTd.appendChild(favBtn);
+          tr.appendChild(favTd);
+
+          tbody.appendChild(tr);
+        });
+      }
+
+      function renderVehiclesTable() {
+        const thead = document.querySelector("#vehicles-table thead tr");
+        if (!thead.querySelector(".star-header")) {
+          const th = document.createElement("th");
+          th.className = "star-header";
+          th.textContent = "⭐";
+          thead.appendChild(th);
+        }
+
+        const tbody = document.querySelector("#vehicles-table tbody");
+        tbody.innerHTML = "";
+
+        vehicles.forEach((vehicle) => {
+          const tr = document.createElement("tr");
+
+          const modelTd = document.createElement("td");
+          modelTd.textContent = vehicle.model;
+          tr.appendChild(modelTd);
+
+          const teamTd = document.createElement("td");
+          teamTd.appendChild(createTeamLink(vehicle.teamId));
+          tr.appendChild(teamTd);
+
+          const driversTd = document.createElement("td");
+          driversTd.appendChild(createDriverLinks(vehicle.driverIds));
+          tr.appendChild(driversTd);
+
+          const engineTd = document.createElement("td");
+          engineTd.textContent = vehicle.engine;
+          tr.appendChild(engineTd);
+
+          const hpTd = document.createElement("td");
+          hpTd.textContent = vehicle.horsepower || "-";
+          tr.appendChild(hpTd);
+
+          const yearTd = document.createElement("td");
+          yearTd.textContent = vehicle.year || "-";
+          tr.appendChild(yearTd);
+
+          const favTd = document.createElement("td");
+          const favBtn = document.createElement("button");
+          favBtn.className = "star-btn";
+          if (isSaved("vehicles", vehicle._id)) {
+            favBtn.textContent = "★";
+            favBtn.classList.add("active");
+          } else {
+            favBtn.textContent = "☆";
+          }
+          favBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            toggleFavorite("vehicles", vehicle._id, favBtn);
+          });
+          favTd.appendChild(favBtn);
+          tr.appendChild(favTd);
+
+          tbody.appendChild(tr);
+        });
+      }
+
+      function makeTableSortable(tableId) {
+        const table = document.getElementById(tableId);
+        const headers = table.querySelectorAll("th");
+        const tbody = table.querySelector("tbody");
+
+        headers.forEach((header, index) => {
+          if (header.classList.contains("star-header")) return;
+          header.style.cursor = "pointer";
+          header.innerHTML += ' <span class="sort-arrow">↕</span>';
+
+          header.addEventListener("click", () => {
+            const rows = Array.from(tbody.querySelectorAll("tr"));
+            const ascending = header.dataset.asc !== "true";
+            header.dataset.asc = ascending;
+
+            headers.forEach((h) => {
+              const arrow = h.querySelector(".sort-arrow");
+              if (arrow) arrow.textContent = "↕";
+            });
+
+            const arrow = header.querySelector(".sort-arrow");
+            arrow.textContent = ascending ? "▲" : "▼";
+
+            rows.sort((a, b) => {
+              let valA = a.children[index].textContent.trim();
+              let valB = b.children[index].textContent.trim();
+              const isNumeric = !isNaN(valA) && !isNaN(valB);
+              if (isNumeric) {
+                valA = parseFloat(valA);
+                valB = parseFloat(valB);
+              }
+              if (valA < valB) return ascending ? -1 : 1;
+              if (valA > valB) return ascending ? 1 : -1;
+              return 0;
+            });
+
+            rows.forEach((r) => tbody.appendChild(r));
+          });
+        });
+      }
+
+      async function loadData() {
+        const loadingMsg = document.getElementById("loading-msg");
+        try {
+          const [teamsRes, driversRes, vehiclesRes] = await Promise.all([
+            fetch(`${API_BASE}/teams`),
+            fetch(`${API_BASE}/drivers`),
+            fetch(`${API_BASE}/vehicles`),
+          ]);
+
+          if (!teamsRes.ok || !driversRes.ok || !vehiclesRes.ok) {
+            throw new Error("API error");
+          }
+
+          teams = await teamsRes.json();
+          drivers = await driversRes.json();
+          vehicles = await vehiclesRes.json();
+
+          loadingMsg.style.display = "none";
+
+          renderTeamsTable();
+          renderDriversTable();
+          renderVehiclesTable();
+
+          makeTableSortable("teams-table");
+          makeTableSortable("drivers-table");
+          makeTableSortable("vehicles-table");
+
+        } catch (err) {
+          loadingMsg.textContent = "Fehler beim Laden der Daten. Ist das Backend gestartet?";
+          loadingMsg.style.color = "red";
+          console.error(err);
+        }
+      }
+
+      loadData();
+    </script>
+  </body>
+</html>

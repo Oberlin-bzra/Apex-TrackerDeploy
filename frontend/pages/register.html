@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/x-icon" href="/faviconNew.jpg" />
+    <title>ApexTracker - Register</title>
+    <link rel="stylesheet" href="../styles/styles.css" />
+    <script type="module" src="/src/darkmode.ts"></script>
+  </head>
+  <body>
+    
+<div class="login-container">
+  <h1>ApexTracker Registration</h1>
+  <form id="register-form">
+    <label for="email">E-Mail</label>
+    <input type="email" id="email" required placeholder="name@email.com" />
+
+    <label for="password">Password</label>
+    <input type="password" id="password" required placeholder="••••••••" />
+
+    <label for="confirm">Confirm Password</label>
+    <input type="password" id="confirm" required placeholder="••••••••" />
+
+    <button type="submit">Register</button>
+    <p id="register-message"></p>
+  </form>
+
+  <p class="register-link">
+    Already have an account?
+    <a href="./login.html">Login here</a>
+  </p>
+
+  <p>
+    <a href="../index.html" class="back-link">Go to Home</a>
+  </p>
+</div>
+
+
+    <script type="module" src="./register.ts"></script>
+  </body>
+</html>
