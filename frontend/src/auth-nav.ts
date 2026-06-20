@@ -30,10 +30,10 @@ function updateNavigation(): void {
   const navButtons = document.querySelector('.nav-buttons');
   if (!navButtons) return;
 
-  const loginButton = navButtons.querySelector('a[href*="login.html"]') as HTMLAnchorElement;
+  const loginButton = navButtons.querySelector('a[href*="login"]') as HTMLAnchorElement;
   if (!loginButton) return;
 
-  const hasProfileLink = navButtons.querySelector('a[href*="profile.html"]');
+  const hasProfileLink = navButtons.querySelector('a[href*="profile"]');
   
   if (isLoggedIn()) {
     const email = getUserEmail();
