@@ -1,0 +1,29 @@
+[[redirects]]
+  from = "/login.html"
+  to = "/pages/login.html"
+  status = 200
+
+[[redirects]]
+  from = "/register.html"
+  to = "/pages/register.html"
+  status = 200
+
+[[redirects]]
+  from = "/dashboard.html"
+  to = "/pages/dashboard.html"
+  status = 200
+
+[[redirects]]
+  from = "/garage.html"
+  to = "/pages/garage.html"
+  status = 200
+
+[[redirects]]
+  from = "/profile.html"
+  to = "/pages/profile.html"
+  status = 200
+
+[[redirects]]
+  from = "/impressum.html"
+  to = "/pages/impressum.html"
+  status = 200
